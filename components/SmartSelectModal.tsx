@@ -34,6 +34,10 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
     const [smoothness, setSmoothness] = useState(0.5);
     const [maskIndex, setMaskIndex] = useState(-1); // -1 = Auto (best), 0 = SubPart, 1 = Part, 2 = Whole
 
+    // Use refs for cleanup to avoid stale closures in onmessage
+    const maskUrlRef = useRef<string | null>(null);
+    const rawMaskUrlRef = useRef<string | null>(null);
+
     // Initialize Worker
     useEffect(() => {
         if (!isOpen) return;
@@ -52,10 +56,17 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                 setIsEmbedding(false);
             } else if (status === 'decoded') {
                 // mask is a Blob
-                if (maskUrl) URL.revokeObjectURL(maskUrl);
-                if (rawMaskUrl) URL.revokeObjectURL(rawMaskUrl);
-                setMaskUrl(URL.createObjectURL(mask));
-                setRawMaskUrl(URL.createObjectURL(rawMask));
+                if (maskUrlRef.current) URL.revokeObjectURL(maskUrlRef.current);
+                if (rawMaskUrlRef.current) URL.revokeObjectURL(rawMaskUrlRef.current);
+
+                const newMaskUrl = URL.createObjectURL(mask);
+                const newRawMaskUrl = URL.createObjectURL(rawMask);
+
+                maskUrlRef.current = newMaskUrl;
+                rawMaskUrlRef.current = newRawMaskUrl;
+
+                setMaskUrl(newMaskUrl);
+                setRawMaskUrl(newRawMaskUrl);
             } else if (status === 'error') {
                 setError(error || 'Unknown error');
                 setIsEmbedding(false);
@@ -67,8 +78,8 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
 
         return () => {
             workerRef.current?.terminate();
-            if (maskUrl) URL.revokeObjectURL(maskUrl);
-            if (rawMaskUrl) URL.revokeObjectURL(rawMaskUrl);
+            if (maskUrlRef.current) URL.revokeObjectURL(maskUrlRef.current);
+            if (rawMaskUrlRef.current) URL.revokeObjectURL(rawMaskUrlRef.current);
         };
     }, [isOpen]);
 

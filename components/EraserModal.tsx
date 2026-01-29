@@ -31,7 +31,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
         if (!ctx) return;
 
         const img = new Image();
-        img.crossOrigin = "anonymous"; // Fix for potential CORS issues with some blob/data URLs
+        // Removed crossOrigin as it can break local blob loading
         img.onload = () => {
             // Set canvas size to match image resolution exactly
             canvas.width = img.width;

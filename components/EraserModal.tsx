@@ -16,17 +16,15 @@ interface EraserModalProps {
 
 export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [brushSize, setBrushSize] = useState(20);
     const [isDrawing, setIsDrawing] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    // Zoom and Pan state
+    // Zoom state (Scrolling is native)
     const [scale, setScale] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [isPanning, setIsPanning] = useState(false);
-    const [lastPosition, setLastPosition] = useState({ x: 0, y: 0 });
+    const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
 
     // History for Undo
     const [history, setHistory] = useState<ImageData[]>([]);
@@ -36,12 +34,11 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
             setImageLoaded(false);
             setHistory([]);
             setScale(1);
-            setOffset({ x: 0, y: 0 });
         }
     }, [isOpen]);
 
     const getMousePos = (e: MouseEvent) => {
-        if (!canvasRef.current) return { x: 0, y: 0 };
+        if (!canvasRef.current || !scrollContainerRef.current) return { x: 0, y: 0 };
         const rect = canvasRef.current.getBoundingClientRect();
 
         // Calculate position relative to the canvas element's current on-screen size
@@ -57,27 +54,17 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
             const delta = -e.deltaY;
             const factor = Math.pow(1.1, delta / 100);
             setScale(prev => Math.min(Math.max(prev * factor, 0.1), 10));
-        } else if (!isDrawing) {
-            // Standard scroll moves the offset if not drawing
-            setOffset(prev => ({
-                x: prev.x - e.deltaX,
-                y: prev.y - e.deltaY
-            }));
         }
+        // Native scroll takes care of panning
     };
 
     const startDrawing = (e: MouseEvent) => {
-        // Space key panning handled via global events or middle click
-        if (e.button === 1 || (e.button === 0 && e.altKey)) {
-            setIsPanning(true);
-            setLastPosition({ x: e.clientX, y: e.clientY });
-            return;
-        }
+        if (e.button !== 0) return; // Only left click for drawing
 
         setIsDrawing(true);
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx && canvasRef.current) {
-            setHistory(prev => [...prev.slice(-9), ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height)]);
+            setHistory(prev => [...prev.slice(-19), ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height)]);
             const { x, y } = getMousePos(e);
             ctx.globalCompositeOperation = 'destination-out';
             ctx.beginPath();
@@ -87,14 +74,6 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-        if (isPanning) {
-            const dx = e.clientX - lastPosition.x;
-            const dy = e.clientY - lastPosition.y;
-            setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-            setLastPosition({ x: e.clientX, y: e.clientY });
-            return;
-        }
-
         if (!isDrawing || !canvasRef.current) return;
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
@@ -107,7 +86,6 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
 
     const stopDrawing = () => {
         setIsDrawing(false);
-        setIsPanning(false);
     };
 
     const handleUndo = () => {
@@ -132,7 +110,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
         }, 'image/png');
     };
 
-    // Checkerboard background style (moves with the image)
+    // Checkerboard background style
     const transparencyStyle = {
         backgroundImage: `
             linear-gradient(45deg, #334155 25%, transparent 25%), 
@@ -146,37 +124,46 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[90vw] w-full h-[95vh] flex flex-col p-0 gap-0 overflow-hidden bg-slate-950 border-white/10 shadow-2xl rounded-3xl">
+            <DialogContent className="sm:max-w-[95vw] w-full h-[95vh] flex flex-col p-0 gap-0 overflow-hidden bg-slate-950 border-white/10 shadow-2xl rounded-3xl">
                 <DialogHeader className="p-4 border-b border-white/5 text-white bg-slate-900/50 backdrop-blur-md">
                     <DialogTitle className="flex items-center gap-2">
                         <Eraser className="w-5 h-5 text-primary" />
                         消しゴムツール
                     </DialogTitle>
                     <DialogDescription className="sr-only">
-                        マウスホイールでズーム、ドラッグで消去、Ctrl+マウスホイールで拡大縮小できます。
+                        画像の一部を消去します。スクロールバーで移動、ボタンやCtrl+ホイールで拡大縮小できます。
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Canvas Area */}
+                {/* Canvas Area (Scrollable) */}
                 <div
-                    ref={containerRef}
-                    className="flex-1 bg-black overflow-hidden flex items-center justify-center relative touch-none cursor-default"
+                    ref={scrollContainerRef}
+                    className="flex-1 bg-black overflow-auto relative touch-auto custom-scrollbar"
                     onWheel={handleWheel}
                 >
                     <div
-                        className="relative transition-transform duration-75 ease-out select-none shadow-[0_0_100px_rgba(0,0,0,0.5)]"
+                        className="min-w-full min-h-full flex items-center justify-center p-[20vh]"
                         style={{
-                            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-                            cursor: isPanning ? 'grabbing' : 'auto'
+                            width: imgSize.width ? `${imgSize.width * scale + 400}px` : '100%',
+                            height: imgSize.height ? `${imgSize.height * scale + 400}px` : '100%'
                         }}
                     >
-                        <div className="relative rounded-sm overflow-hidden" style={transparencyStyle}>
+                        <div
+                            className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-sm overflow-hidden"
+                            style={{
+                                ...transparencyStyle,
+                                width: imgSize.width ? imgSize.width * scale : 'auto',
+                                height: imgSize.height ? imgSize.height * scale : 'auto'
+                            }}
+                        >
                             <img
                                 src={imageUrl}
                                 alt="Background"
-                                className="max-w-[80vw] max-h-[70vh] object-contain block opacity-0 pointer-events-none"
+                                className="w-full h-full block opacity-0 pointer-events-none"
+                                style={{ imageRendering: scale > 1 ? 'pixelated' : 'auto' }}
                                 onLoad={(e) => {
                                     const img = e.currentTarget;
+                                    setImgSize({ width: img.naturalWidth, height: img.naturalHeight });
                                     const canvas = canvasRef.current;
                                     if (canvas) {
                                         canvas.width = img.naturalWidth;
@@ -212,44 +199,27 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
                     </div>
 
                     {/* Zoom HUD */}
-                    <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-1.5 px-3 rounded-2xl text-white/70 text-xs font-bold shadow-2xl">
+                    <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-1.5 px-3 rounded-2xl text-white/70 text-xs font-bold shadow-2xl z-20">
                         <button
                             onClick={() => setScale(prev => Math.max(prev / 1.25, 0.1))}
                             className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
-                            title="Zoom Out"
                         >
                             <ZoomOut className="w-4 h-4" />
                         </button>
-
                         <span className="min-w-[45px] text-center font-mono">{Math.round(scale * 100)}%</span>
-
                         <button
                             onClick={() => setScale(prev => Math.min(prev * 1.25, 10))}
                             className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
-                            title="Zoom In"
                         >
                             <ZoomIn className="w-4 h-4" />
                         </button>
-
                         <div className="w-px h-3 bg-white/10 mx-1" />
-                        <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }} className="hover:text-primary transition-colors uppercase tracking-widest text-[10px] px-2">Reset</button>
-                    </div>
-
-                    {/* Controls Guide */}
-                    <div className="absolute bottom-6 left-6 hidden md:flex items-center gap-4 text-white/30 text-[10px] uppercase font-bold tracking-widest bg-black/20 p-2 px-4 rounded-xl">
-                        <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded bg-white/10 flex items-center justify-center text-[8px]">Ctrl</span>
-                            <span>+ Wheel Zoom</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded bg-white/10 flex items-center justify-center text-[8px]">Mid</span>
-                            <span>Drag to Pan</span>
-                        </div>
+                        <button onClick={() => setScale(1)} className="hover:text-primary transition-colors uppercase tracking-widest text-[10px] px-2 text-white/40">Reset</button>
                     </div>
                 </div>
 
                 {/* Toolbar */}
-                <DialogFooter className="p-4 border-t border-white/5 bg-slate-900 flex-col sm:flex-row gap-6 items-center shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
+                <DialogFooter className="p-4 border-t border-white/5 bg-slate-900 flex-col sm:flex-row gap-6 items-center shadow-[0_-20px_50px_rgba(0,0,0,0.3)] z-[60]">
                     <div className="flex items-center gap-6 flex-1 w-full">
                         <div className="flex flex-col gap-1.5 min-w-[32px]">
                             <div className="w-8 h-8 rounded-full border-2 border-primary/30 bg-white/5 flex items-center justify-center overflow-hidden">
@@ -291,13 +261,20 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
                         <Button
                             onClick={handleSave}
                             disabled={isProcessing}
-                            className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-white rounded-2xl px-8 font-bold shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+                            className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white rounded-2xl px-8 font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                         >
                             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "変更を保存"}
                         </Button>
                     </div>
                 </DialogFooter>
             </DialogContent>
+
+            <style jsx global>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 12px; height: 12px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 6px; border: 3px solid transparent; background-clip: content-box; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); border: 3px solid transparent; background-clip: content-box; }
+            `}</style>
         </Dialog>
     );
 }

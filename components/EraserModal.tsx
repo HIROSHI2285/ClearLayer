@@ -25,35 +25,12 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     const [history, setHistory] = useState<ImageData[]>([]);
 
     useEffect(() => {
-        let isMounted = true;
-        if (!isOpen || !canvasRef.current || !imageUrl) return;
-
-        setImageLoaded(false);
-        console.log("EraserModal: Opening with image", imageUrl.substring(0, 50) + "...");
-
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const img = new Image();
-        img.onload = () => {
-            if (!isMounted) return;
-            console.log("EraserModal: Image loaded successfully", img.width, "x", img.height);
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            setImageLoaded(true);
-        };
-        img.onerror = (e) => {
-            if (!isMounted) return;
-            console.error("EraserModal: Failed to load image", imageUrl, e);
-            setImageLoaded(true);
-        };
-
-        img.src = imageUrl;
-        return () => { isMounted = false; };
-    }, [isOpen, imageUrl]);
+        // Reset state on open
+        if (isOpen) {
+            setImageLoaded(false);
+            setHistory([]);
+        }
+    }, [isOpen]);
 
     const getMousePos = (e: MouseEvent) => {
         if (!canvasRef.current) return { x: 0, y: 0 };
@@ -144,23 +121,45 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
                 </DialogHeader>
 
                 {/* Canvas Area */}
-                <div className="flex-1 bg-slate-900 overflow-auto flex items-center justify-center relative touch-none" style={transparencyStyle}>
-                    {!imageLoaded && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm z-10">
-                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                        </div>
-                    )}
-                    <canvas
-                        ref={canvasRef}
-                        className={cn(
-                            "max-w-full max-h-full cursor-crosshair shadow-2xl transition-opacity",
-                            imageLoaded ? "opacity-100" : "opacity-0"
+                <div className="flex-1 bg-slate-900 overflow-auto flex items-center justify-center relative touch-none p-4" style={transparencyStyle}>
+                    <div className="relative inline-block max-w-full max-h-full shadow-2xl overflow-hidden rounded-lg bg-slate-950/20">
+                        <img
+                            src={imageUrl}
+                            alt="Background"
+                            className="max-w-full max-h-[70vh] object-contain block opacity-0 pointer-events-none"
+                            onLoad={(e) => {
+                                const img = e.currentTarget;
+                                const canvas = canvasRef.current;
+                                if (canvas) {
+                                    canvas.width = img.naturalWidth;
+                                    canvas.height = img.naturalHeight;
+                                    const ctx = canvas.getContext('2d');
+                                    if (ctx) {
+                                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                        ctx.drawImage(img, 0, 0);
+                                        setImageLoaded(true);
+                                        console.log("EraserModal: Image synchronized with canvas", img.naturalWidth, "x", img.naturalHeight);
+                                    }
+                                }
+                            }}
+                        />
+                        <canvas
+                            ref={canvasRef}
+                            className={cn(
+                                "absolute inset-0 w-full h-full cursor-crosshair transition-opacity duration-300",
+                                imageLoaded ? "opacity-100" : "opacity-0"
+                            )}
+                            onMouseDown={startDrawing}
+                            onMouseMove={draw}
+                            onMouseUp={stopDrawing}
+                            onMouseLeave={stopDrawing}
+                        />
+                        {!imageLoaded && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm z-10">
+                                <Loader2 className="w-8 h-8 text-white/50 animate-spin" />
+                            </div>
                         )}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                    />
+                    </div>
                 </div>
 
                 {/* Toolbar */}

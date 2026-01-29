@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { Eraser, Loader2, Save, Undo } from 'lucide-react';
+import { Eraser, Loader2, Save, Undo, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EraserModalProps {
@@ -212,10 +212,27 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
                     </div>
 
                     {/* Zoom HUD */}
-                    <div className="absolute bottom-6 right-6 flex items-center gap-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-2 px-4 rounded-2xl text-white/70 text-xs font-bold shadow-2xl">
-                        <span>{Math.round(scale * 100)}%</span>
-                        <div className="w-px h-3 bg-white/10" />
-                        <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }} className="hover:text-primary transition-colors uppercase tracking-widest text-[10px]">Reset</button>
+                    <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-slate-900/80 backdrop-blur-xl border border-white/10 p-1.5 px-3 rounded-2xl text-white/70 text-xs font-bold shadow-2xl">
+                        <button
+                            onClick={() => setScale(prev => Math.max(prev / 1.25, 0.1))}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
+                            title="Zoom Out"
+                        >
+                            <ZoomOut className="w-4 h-4" />
+                        </button>
+
+                        <span className="min-w-[45px] text-center font-mono">{Math.round(scale * 100)}%</span>
+
+                        <button
+                            onClick={() => setScale(prev => Math.min(prev * 1.25, 10))}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
+                            title="Zoom In"
+                        >
+                            <ZoomIn className="w-4 h-4" />
+                        </button>
+
+                        <div className="w-px h-3 bg-white/10 mx-1" />
+                        <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }} className="hover:text-primary transition-colors uppercase tracking-widest text-[10px] px-2">Reset</button>
                     </div>
 
                     {/* Controls Guide */}

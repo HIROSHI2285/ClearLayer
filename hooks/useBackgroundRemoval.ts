@@ -144,6 +144,7 @@ export function useBackgroundRemoval() {
                 if (i.resultUrl) URL.revokeObjectURL(i.resultUrl);
                 return {
                     ...i,
+                    status: 'done',
                     result: newBlob,
                     resultUrl: URL.createObjectURL(newBlob)
                 };

@@ -153,17 +153,18 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                                     "w-full h-10 px-4 rounded-xl shadow-none transition-all",
                                     "bg-primary text-primary-foreground border-transparent hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
                                 )}
-                                asChild
+                                onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = item.resultUrl || item.originalUrl;
+                                    link.download = `bg-removed-${Date.now()}-${item.file.name}`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                }}
+                                title="結果を保存"
                             >
-                                <a
-                                    href={item.resultUrl || item.originalUrl}
-                                    download={`bg-removed-${item.file.name}`}
-                                    title="結果を保存"
-                                    className="flex items-center justify-center w-full"
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    <span className="text-sm font-bold tracking-wider">保存</span>
-                                </a>
+                                <Download className="w-4 h-4 mr-2" />
+                                <span className="text-sm font-bold tracking-wider">保存</span>
                             </Button>
                         </>
                     )}

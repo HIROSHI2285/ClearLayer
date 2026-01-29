@@ -62,7 +62,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
         if (e.button !== 0) return; // Only left click for drawing
 
         setIsDrawing(true);
-        const ctx = canvasRef.current?.getContext('2d');
+        const ctx = canvasRef.current?.getContext('2d', { willReadFrequently: true });
         if (ctx && canvasRef.current) {
             setHistory(prev => [...prev.slice(-19), ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height)]);
             const { x, y } = getMousePos(e);
@@ -75,7 +75,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
 
     const handleMouseMove = (e: MouseEvent) => {
         if (!isDrawing || !canvasRef.current) return;
-        const ctx = canvasRef.current.getContext('2d');
+        const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true });
         if (ctx) {
             const { x, y } = getMousePos(e);
             ctx.beginPath();
@@ -90,7 +90,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
 
     const handleUndo = () => {
         if (history.length === 0 || !canvasRef.current) return;
-        const ctx = canvasRef.current.getContext('2d');
+        const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true });
         if (ctx) {
             const lastState = history[history.length - 1];
             ctx.putImageData(lastState, 0, 0);
@@ -168,7 +168,7 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
                                     if (canvas) {
                                         canvas.width = img.naturalWidth;
                                         canvas.height = img.naturalHeight;
-                                        const ctx = canvas.getContext('2d');
+                                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
                                         if (ctx) {
                                             ctx.clearRect(0, 0, canvas.width, canvas.height);
                                             ctx.drawImage(img, 0, 0);

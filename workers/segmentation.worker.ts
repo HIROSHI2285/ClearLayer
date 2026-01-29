@@ -240,6 +240,14 @@ self.onmessage = async (e: MessageEvent) => {
             // We do NOT force >0.8 to 1.0 anymore. 
             // We allow the Guided Filter's result to stand, which preserves texture in hair/glass.
 
+            // [Ultra-Sharp Mode]
+            // Gamma 2.5 pushes almost all semi-transparent pixels to 0 (transparent).
+            a = Math.pow(a, 2.5);
+            // Aggressive noise gate
+            if (a < 0.15) a = 0;
+            // Solidify the core faster
+            if (a > 0.95) a = 1.0;
+
             finalRgba[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
         }
 

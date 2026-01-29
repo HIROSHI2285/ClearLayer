@@ -5,7 +5,7 @@ import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { getCroppedImg } from '@/lib/canvasUtils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2, Scissors } from 'lucide-react';
 
 interface CropModalProps {
@@ -51,11 +51,14 @@ export function CropModal({ isOpen, imageUrl, onClose, onCropComplete }: CropMod
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[800px] h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
-                <DialogHeader className="p-4 border-b">
+                <DialogHeader className="p-4 border-b text-slate-900 bg-white">
                     <DialogTitle className="flex items-center gap-2">
                         <Scissors className="w-5 h-5" />
-                        Select Area
+                        切り抜き
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        枠をドラッグして、画像の一部を切り抜くことができます。
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex-1 bg-slate-900 overflow-auto flex items-center justify-center p-4">

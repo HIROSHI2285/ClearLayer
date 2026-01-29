@@ -96,7 +96,7 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                 </div>
 
                 {/* Line 2: Actions Row */}
-                <div className="flex items-center justify-start gap-2 w-full">
+                <div className="flex items-center justify-start gap-2 w-full flex-wrap">
                     {item.status === 'queued' && (
                         <>
                             {onCrop && (

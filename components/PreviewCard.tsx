@@ -96,35 +96,37 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                 </div>
 
                 {/* Line 2: Actions Row */}
-                <div className="flex items-center justify-start gap-2 w-full flex-wrap">
+                {/* Line 2: Actions Row (Grid Layout for 2x2 alignment) */}
+                <div className="grid grid-cols-2 gap-2 w-full">
                     {item.status === 'queued' && (
                         <>
                             {onCrop && (
-                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onCrop(item)} title="切り抜き">
+                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onCrop(item)} title="切り抜き">
                                     <Scissors className="w-4 h-4" />
-                                    <span className="inline">切り抜き</span>
+                                    <span>切り抜き</span>
                                 </Button>
                             )}
                             {onSmartSelect && (
-                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-purple-600/80 hover:text-purple-600 hover:bg-purple-50 transition-colors text-xs gap-2 font-medium" onClick={() => onSmartSelect(item)} title="スマート選択">
+                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-purple-600/80 hover:text-purple-600 hover:bg-purple-50 transition-colors text-xs gap-2 font-medium" onClick={() => onSmartSelect(item)} title="スマート選択">
                                     <Wand2 className="w-4 h-4" />
-                                    <span className="inline">スマート選択</span>
+                                    <span>スマート選択</span>
                                 </Button>
                             )}
                             {onEraser && (
-                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="消しゴム">
+                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="消しゴム">
                                     <Eraser className="w-4 h-4" />
-                                    <span className="inline">消しゴム</span>
+                                    <span>消しゴム</span>
                                 </Button>
                             )}
                         </>
                     )}
 
                     {/* For Done items: Eraser and Save side-by-side */}
+                    {/* For Done items: Eraser and Save side-by-side (2 columns) */}
                     {item.status === 'done' && (
-                        <div className="flex gap-2 w-full">
+                        <>
                             {onEraser && (
-                                <Button size="sm" variant="outline" className="flex-1 h-10 px-3 rounded-xl border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="手動消しゴム">
+                                <Button size="sm" variant="outline" className="w-full h-10 px-3 rounded-xl border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="手動消しゴム">
                                     <Eraser className="w-4 h-4" />
                                     <span className="inline">修正</span>
                                 </Button>
@@ -133,7 +135,7 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                                 size="sm"
                                 variant="outline"
                                 className={cn(
-                                    "flex-1 h-10 px-4 rounded-xl shadow-none transition-all",
+                                    "w-full h-10 px-4 rounded-xl shadow-none transition-all",
                                     "bg-primary text-primary-foreground border-transparent hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
                                 )}
                                 asChild
@@ -148,30 +150,30 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                                     <span className="text-sm font-bold tracking-wider">保存</span>
                                 </a>
                             </Button>
-                        </div>
+                        </>
                     )}
                 </div>
 
-                {/* Save Button for Queued Items (Integrated into flow) */}
-                {item.status !== 'done' && (
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 min-w-[100px] h-9 px-3 rounded-xl bg-white/5 border-slate-200 text-muted-foreground hover:bg-slate-50 hover:text-slate-900 transition-colors text-xs gap-2 font-medium"
-                        asChild
+                {/* Save Button for Queued Items */}
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-9 px-2 rounded-xl bg-white/5 border-slate-200 text-muted-foreground hover:bg-slate-50 hover:text-slate-900 transition-colors text-xs gap-2 font-medium"
+                    asChild
+                >
+                    <a
+                        href={item.originalUrl}
+                        download={item.file.name}
+                        title="元の画像を保存"
+                        className="flex items-center justify-center w-full"
                     >
-                        <a
-                            href={item.originalUrl}
-                            download={item.file.name}
-                            title="元の画像を保存"
-                            className="flex items-center justify-center w-full"
-                        >
-                            <Download className="w-4 h-4" />
-                            <span className="inline">保存</span>
-                        </a>
-                    </Button>
-                )}
-            </div>
+                        <Download className="w-4 h-4" />
+                        <span>保存</span>
+                    </a>
+                </Button>
+            </>
+                    )}
+        </div>
         </Card >
     );
 }

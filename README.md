@@ -1,6 +1,6 @@
 # ClearLayer Studio: 高精度ブラウザ背景削除ツール
 
-![ClearLayer Studio UI](./public/screenshot.png)
+![ClearLayer Studio UI](./public/demo_screenshot.png)
 
 ClearLayer Studioは、プライバシーを重視したプロフェッショナル仕様のブラウザベース画像編集ツールです。最新のAIモデルを活用し、画像の背景削除やオブジェクト抽出をデバイス上ですべて完結させます。
 

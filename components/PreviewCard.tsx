@@ -119,40 +119,58 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                             )}
                         </>
                     )}
-                    {item.status === 'done' && onEraser && (
-                        <div className="flex gap-2 w-full mb-1">
-                            <Button size="sm" variant="outline" className="flex-1 h-9 px-3 rounded-xl border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="手動消しゴム">
-                                <Eraser className="w-4 h-4" />
-                                <span className="inline">消しゴム修正</span>
+
+                    {/* For Done items: Eraser and Save side-by-side */}
+                    {item.status === 'done' && (
+                        <div className="flex gap-2 w-full">
+                            {onEraser && (
+                                <Button size="sm" variant="outline" className="flex-1 h-10 px-3 rounded-xl border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="手動消しゴム">
+                                    <Eraser className="w-4 h-4" />
+                                    <span className="inline">修正</span>
+                                </Button>
+                            )}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className={cn(
+                                    "flex-1 h-10 px-4 rounded-xl shadow-none transition-all",
+                                    "bg-primary text-primary-foreground border-transparent hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
+                                )}
+                                asChild
+                            >
+                                <a
+                                    href={item.resultUrl || item.originalUrl}
+                                    download={`bg-removed-${item.file.name}`}
+                                    title="結果を保存"
+                                    className="flex items-center justify-center w-full"
+                                >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    <span className="text-sm font-bold tracking-wider">保存</span>
+                                </a>
                             </Button>
                         </div>
                     )}
                 </div>
 
-                {/* Line 3: Main Save Button (Stacked below) */}
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className={cn(
-                        "w-full h-10 px-4 rounded-xl shadow-none transition-all",
-                        item.status === 'done'
-                            ? "bg-primary text-primary-foreground border-transparent hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
-                            : "bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
-                    )}
-                    asChild
-                >
-                    <a
-                        href={item.resultUrl || item.originalUrl}
-                        download={item.status === 'done' ? `bg-removed-${item.file.name}` : item.file.name}
-                        title={item.status === 'done' ? "結果を保存" : "元の画像を保存"}
-                        className="flex items-center justify-center w-full"
+                {/* Line 3: Main Save Button (Only for queued or error items) */}
+                {item.status !== 'done' && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full h-10 px-4 rounded-xl shadow-none transition-all bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
+                        asChild
                     >
-                        <Download className="w-4 h-4 mr-2" />
-                        <span className="text-sm font-bold tracking-wider">
-                            {item.status === 'done' ? '保存' : '保存'}
-                        </span>
-                    </a>
-                </Button>
+                        <a
+                            href={item.originalUrl}
+                            download={item.file.name}
+                            title="元の画像を保存"
+                            className="flex items-center justify-center w-full"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            <span className="text-sm font-bold tracking-wider">保存</span>
+                        </a>
+                    </Button>
+                )}
             </div>
         </Card >
     );

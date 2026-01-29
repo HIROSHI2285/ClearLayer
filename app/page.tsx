@@ -94,7 +94,7 @@ export default function Home() {
         <section className="text-center space-y-8 py-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
           <h1 className="text-4xl md:text-6xl font-black text-slate-800 tracking-tight leading-tight">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-400 via-cyan-400 to-sky-500">
-              デザインを、自由にする。
+              <span className="inline-block">デザインを</span><span className="inline-block">自由にする。</span>
             </span>
             <br />
             <span className="text-3xl md:text-5xl text-slate-700 font-bold mt-2 block">

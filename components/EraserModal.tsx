@@ -26,22 +26,25 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     useEffect(() => {
         if (!isOpen || !canvasRef.current || !imageUrl) return;
 
+        setImageLoaded(false);
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
         const img = new Image();
-        // Removed crossOrigin as it can break local blob loading
         img.onload = () => {
-            // Set canvas size to match image resolution exactly
             canvas.width = img.width;
             canvas.height = img.height;
-
-            // Clear and draw
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
             setImageLoaded(true);
         };
+        img.onerror = (e) => {
+            console.error("EraserModal: Failed to load image", imageUrl, e);
+            setImageLoaded(true); // Stop spinner even on error
+        };
+
+        // Use blob URLs directly, no crossOrigin needed for local blobs
         img.src = imageUrl;
     }, [isOpen, imageUrl]);
 
@@ -132,9 +135,17 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
 
                 {/* Canvas Area */}
                 <div className="flex-1 bg-slate-900 overflow-auto flex items-center justify-center relative touch-none" style={transparencyStyle}>
+                    {!imageLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm z-10">
+                            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                        </div>
+                    )}
                     <canvas
                         ref={canvasRef}
-                        className="max-w-full max-h-full cursor-crosshair shadow-2xl"
+                        className={cn(
+                            "max-w-full max-h-full cursor-crosshair shadow-2xl transition-opacity",
+                            imageLoaded ? "opacity-100" : "opacity-0"
+                        )}
                         onMouseDown={startDrawing}
                         onMouseMove={draw}
                         onMouseUp={stopDrawing}

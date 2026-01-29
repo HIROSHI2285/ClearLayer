@@ -95,8 +95,7 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                     {item.file.name}
                 </div>
 
-                {/* Line 2: Actions Row */}
-                {/* Line 2: Actions Row (Grid Layout for 2x2 alignment) */}
+                {/* Line 2: Actions Row (Grid Layout for consistent 2-column alignment) */}
                 <div className="grid grid-cols-2 gap-2 w-full">
                     {item.status === 'queued' && (
                         <>
@@ -118,11 +117,27 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                                     <span>消しゴム</span>
                                 </Button>
                             )}
+                            {/* Save Button for Queued Items */}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full h-9 px-3 rounded-xl bg-white/5 border-slate-200 text-muted-foreground hover:bg-slate-50 hover:text-slate-900 transition-colors text-xs gap-2 font-medium"
+                                asChild
+                            >
+                                <a
+                                    href={item.originalUrl}
+                                    download={item.file.name}
+                                    title="元の画像を保存"
+                                    className="flex items-center justify-center w-full"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span>保存</span>
+                                </a>
+                            </Button>
                         </>
                     )}
 
-                    {/* For Done items: Eraser and Save side-by-side */}
-                    {/* For Done items: Eraser and Save side-by-side (2 columns) */}
+                    {/* For Done items: Alignment Fix */}
                     {item.status === 'done' && (
                         <>
                             {onEraser && (

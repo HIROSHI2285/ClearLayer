@@ -32,7 +32,7 @@ export function Dropzone({ onDrop, className, isReady, initError }: DropzoneProp
         <div
             {...getRootProps()}
             className={cn(
-                "relative overflow-hidden border-2 border-dashed rounded-[2rem] p-12 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center gap-6",
+                "relative overflow-hidden border-2 border-dashed rounded-[2rem] p-6 md:p-12 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center text-center gap-6",
                 isDragActive
                     ? "border-teal-400 bg-teal-50 scale-[0.99] shadow-inner"
                     : "border-slate-200 hover:border-teal-300 hover:bg-teal-50/30",

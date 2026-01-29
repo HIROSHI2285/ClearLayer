@@ -47,7 +47,7 @@ const nextConfig = {
         ];
     },
     // Output static files for safest deployment (no server vulnerability)
-    // output: 'export', // Uncomment this if deploying to Vercel/Netlify/S3 directly as static site
+    output: 'export', // Uncomment this if deploying to Vercel/Netlify/S3 directly as static site
 
 };
 

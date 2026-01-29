@@ -260,7 +260,7 @@ self.onmessage = async (e: MessageEvent) => {
         const resultBlob = await finalCanvas.convertToBlob({ type: 'image/png' });
         self.postMessage({ status: 'complete', id, result: resultBlob });
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Worker Error Details:", e);
         const errorMsg = e instanceof Error ? `${e.name}: ${e.message}\n${e.stack}` : typeof e === 'string' ? e : JSON.stringify(e);
         self.postMessage({ status: 'error', id, error: errorMsg });

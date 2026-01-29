@@ -13,16 +13,14 @@ async function loadModel() {
         return;
     }
 
-    console.log("Loading Stable High-Res Engine (RMBG-1.4 + Guided Filter)...");
+    console.log("Loading Stable High-Res Engine (RMBG-1.4 + Transparency)...");
     self.postMessage({ status: 'loading', message: 'Loading Stable Engine...' });
 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 25000));
 
     try {
-        // [STABLE STRATEGY]
-        // BiRefNet Lite crashed the user's system (Memory/GPU limits).
-        // RMBG-1.4 is proven stable.
-        // We will combining RMBG-1.4 (for robust masking) with the Guided Filter (for "BiRefNet-like" edge quality).
+        // [PLAN B: Transparency Support]
+        // Reverting to stable RMBG-1.4 but enabling Alpha Preservation.
         segmenter = await Promise.race([
             pipeline('image-segmentation', 'briaai/RMBG-1.4', {
                 device: 'webgpu', // Try GPU first
@@ -170,7 +168,7 @@ self.onmessage = async (e: MessageEvent) => {
         if (!maskOutput) throw new Error("Inference failed");
 
         // 3. Upscale Mask & Prepare Guidance (The "Canva Secret Sauce")
-        self.postMessage({ status: 'processing', id, message: 'Polishing edges...' });
+        self.postMessage({ status: 'processing', id, message: 'Refining Transparency...' });
 
         // Guidance I (Grayscale/Luminance) from Original High-Res
         const guideCanvas = new OffscreenCanvas(w, h);
@@ -210,21 +208,17 @@ self.onmessage = async (e: MessageEvent) => {
 
         const p = new Float32Array(w * h);
         for (let i = 0; i < w * h; i++) {
-            // [CRITICAL FIX: SOLIDIFY CORE]
-            // The AI gives soft probabilities (e.g. 0.6 for body), causing "ghosting".
-            // We want the body to be 100% solid.
-            // We BINARIZE the input to the Guided Filter.
-            // If AI says > 20%, we treat it as SOLID FOREGROUND (1.0).
-            // The Guided Filter will then only soften the *edges* based on the image structure.
-            const val = pData.data[i * 4] / 255.0;
-            p[i] = val > 0.20 ? 1.0 : 0.0;
+            // [TRANSPARENCY SUPPORT]
+            // Instead of binarizing (0 or 1), we keep the soft alpha probabilities.
+            // This allows the Guided Filter to refine the *gradients* of transparency (e.g. glass, hair)
+            // using the local structure of the image (I).
+            p[i] = pData.data[i * 4] / 255.0;
         }
 
         // 4. Run Guided Filter
-        // Now 'p' is a hard mask. Guided Filter will act as an "Edge Anti-Aliaser".
-        // It will snap the 0->1 transition to the hair lines in 'I'.
-        const adaptiveRadius = Math.max(4, Math.round(Math.min(w, h) / 120));
-        const refinedAlpha = guidedFilter(I, p, w, h, adaptiveRadius, 0.00001);
+        // Radius matches local detail size.
+        const adaptiveRadius = Math.max(2, Math.round(Math.min(w, h) / 150)); // Slightly tighter radius for details
+        const refinedAlpha = guidedFilter(I, p, w, h, adaptiveRadius, 1e-4);
 
         // 5. Final Composite
         const finalRgba = new Uint8ClampedArray(w * h * 4);
@@ -233,21 +227,18 @@ self.onmessage = async (e: MessageEvent) => {
             finalRgba[i * 4 + 1] = guideData.data[i * 4 + 1];
             finalRgba[i * 4 + 2] = guideData.data[i * 4 + 2];
 
+            // Gamma correction for Alpha to boost solid areas while keeping transparency
+            // x^0.5 makes midtops (0.5) -> 0.7, boosting visibility of semi-transparent areas
+            // x^2 makes them more transparent.
+            // We want to trust the AI but clean up noise.
+
             let a = refinedAlpha[i];
 
-            // [Safety Core]
-            // If the original AI (RMBG) was very confident (>80%), 
-            // we ignore the filter's smoothing and force it to be SOLID.
-            // This prevents "ghosting" or transparency in the middle of the body.
-            const rawConfidence = pData.data[i * 4] / 255.0;
-            if (rawConfidence > 0.8) {
-                a = 1.0;
-            } else {
-                // For edges (uncertain areas), we trust the Guided Filter.
-                // We apply a gentle curve to clean up noise.
-                if (a < 0.05) a = 0;
-                if (a > 0.95) a = 1;
-            }
+            // Soft thresholding to remove dusty background noise
+            if (a < 0.05) a = 0;
+
+            // We do NOT force >0.8 to 1.0 anymore. 
+            // We allow the Guided Filter's result to stand, which preserves texture in hair/glass.
 
             finalRgba[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(a * 255)));
         }

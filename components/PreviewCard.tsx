@@ -154,26 +154,7 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                     )}
                 </div>
 
-                {/* Save Button for Queued Items */}
-                <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full h-9 px-2 rounded-xl bg-white/5 border-slate-200 text-muted-foreground hover:bg-slate-50 hover:text-slate-900 transition-colors text-xs gap-2 font-medium"
-                    asChild
-                >
-                    <a
-                        href={item.originalUrl}
-                        download={item.file.name}
-                        title="元の画像を保存"
-                        className="flex items-center justify-center w-full"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>保存</span>
-                    </a>
-                </Button>
-            </>
-                    )}
-        </div>
+            </div>
         </Card >
     );
 }

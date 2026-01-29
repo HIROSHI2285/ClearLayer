@@ -16,13 +16,7 @@ interface CropModalProps {
 }
 
 export function CropModal({ isOpen, imageUrl, onClose, onCropComplete }: CropModalProps) {
-    const [crop, setCrop] = useState<Crop>({
-        unit: '%',
-        x: 25,
-        y: 25,
-        width: 50,
-        height: 50
-    });
+    const [crop, setCrop] = useState<Crop>();
     const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const imgRef = useRef<HTMLImageElement | null>(null);

@@ -152,12 +152,12 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                     )}
                 </div>
 
-                {/* Line 3: Main Save Button (Only for queued or error items) */}
+                {/* Save Button for Queued Items (Integrated into flow) */}
                 {item.status !== 'done' && (
                     <Button
                         size="sm"
                         variant="outline"
-                        className="w-full h-10 px-4 rounded-xl shadow-none transition-all bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
+                        className="flex-1 min-w-[100px] h-9 px-3 rounded-xl bg-white/5 border-slate-200 text-muted-foreground hover:bg-slate-50 hover:text-slate-900 transition-colors text-xs gap-2 font-medium"
                         asChild
                     >
                         <a
@@ -166,8 +166,8 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                             title="元の画像を保存"
                             className="flex items-center justify-center w-full"
                         >
-                            <Download className="w-4 h-4 mr-2" />
-                            <span className="text-sm font-bold tracking-wider">保存</span>
+                            <Download className="w-4 h-4" />
+                            <span className="inline">保存</span>
                         </a>
                     </Button>
                 )}

@@ -24,16 +24,21 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     const [history, setHistory] = useState<ImageData[]>([]);
 
     useEffect(() => {
-        if (!isOpen || !canvasRef.current) return;
+        if (!isOpen || !canvasRef.current || !imageUrl) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
         const img = new Image();
+        img.crossOrigin = "anonymous"; // Fix for potential CORS issues with some blob/data URLs
         img.onload = () => {
+            // Set canvas size to match image resolution exactly
             canvas.width = img.width;
             canvas.height = img.height;
+
+            // Clear and draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
             setImageLoaded(true);
         };

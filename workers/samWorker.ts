@@ -172,8 +172,11 @@ self.onmessage = async (e: MessageEvent<SamWorkerMessage>) => {
 
                     let logit = -10.0;
                     if (y < maskH && x < maskW) {
+                        // Correct indexing: [channel, y, x] flattened
                         const tensorIdx = channelOffset + (y * maskW + x);
-                        logit = data[tensorIdx];
+                        if (tensorIdx < data.length) {
+                            logit = data[tensorIdx];
+                        }
                     }
 
                     // Apply temperature for sharpness control

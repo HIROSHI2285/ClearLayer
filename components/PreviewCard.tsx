@@ -1,10 +1,11 @@
 "use client";
 
 import { ImageItem } from '@/hooks/useBackgroundRemoval';
-import { Loader2, Download, XCircle, CheckCircle2, Scissors, Eraser, Wand2 } from 'lucide-react';
+import { Loader2, Download, XCircle, CheckCircle2, Scissors, Eraser, Wand2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface PreviewCardProps {
     item: ImageItem;
@@ -28,81 +29,116 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
     };
 
     return (
-        <Card className="overflow-hidden group relative">
-            <div className="relative aspect-square w-full bg-white transition-all">
+        <Card className="overflow-hidden group relative glass border-white/5 rounded-3xl transition-all duration-500 hover:scale-[1.02] hover:shadow-primary/5 shadow-2xl">
+            <div className="relative aspect-square w-full bg-slate-950/40 transition-all overflow-hidden">
                 {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-50" style={transparencyStyle}></div>
+                <div className="absolute inset-0 opacity-[0.03]" style={transparencyStyle}></div>
 
                 {/* Image Display */}
-                <div className="absolute inset-0 flex items-center justify-center p-4">
+                <div className="absolute inset-0 flex items-center justify-center p-6 group-hover:scale-105 transition-transform duration-700 ease-out">
                     <img
                         src={item.resultUrl || item.originalUrl}
                         alt="preview"
-                        className="max-w-full max-h-full object-contain drop-shadow-sm"
+                        className="max-w-full max-h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
                     />
                 </div>
 
                 {/* Overlays */}
                 {item.status === 'processing' && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
-                        <Loader2 className="w-10 h-10 text-white animate-spin" />
+                    <div className="absolute inset-0 bg-primary/10 flex flex-col items-center justify-center backdrop-blur-md">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse" />
+                            <Loader2 className="w-12 h-12 text-primary animate-spin relative z-10" />
+                        </div>
+                        <span className="mt-4 text-[10px] font-bold text-primary tracking-wider">処理中...</span>
                     </div>
                 )}
 
                 {item.status === 'error' && (
-                    <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
-                        <XCircle className="w-10 h-10 text-red-500" />
+                    <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center backdrop-blur-sm">
+                        <XCircle className="w-12 h-12 text-red-500/50" />
                     </div>
                 )}
 
-                {/* Delete Button */}
+                {/* Status Badge */}
+                <div className="absolute top-3 left-3 flex gap-2">
+                    {item.status === 'done' && (
+                        <Badge className="bg-green-500/10 text-green-500 border-green-500/20 backdrop-blur-md rounded-lg py-0.5 px-2 text-[10px] font-bold">
+                            完了
+                        </Badge>
+                    )}
+                    {item.status === 'queued' && (
+                        <Badge className="bg-primary/10 text-primary border-primary/20 backdrop-blur-md rounded-lg py-0.5 px-2 text-[10px] font-bold">
+                            待機中
+                        </Badge>
+                    )}
+                </div>
+
+                {/* Delete Button (Visible on hover) */}
                 {onRemove && (
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-white/70 hover:bg-red-100 hover:text-red-500 transition-colors shadow-sm"
+                        className="absolute top-3 right-3 h-8 w-8 rounded-xl bg-red-500/5 text-red-500/40 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md border border-white/5"
                         onClick={() => onRemove(item.id)}
                     >
-                        <X className="w-3 h-3" />
+                        <X className="w-4 h-4" />
                     </Button>
                 )}
             </div>
 
             {/* Footer */}
-            <div className="p-3 bg-white border-t flex items-center justify-between gap-2">
-                <div className="text-xs truncate text-slate-500 flex-1" title={item.file.name}>
+            {/* Footer - 2 Line Layout for better spacing */}
+            <div className="p-4 bg-white/5 border-t border-white/5 flex flex-col gap-3">
+                {/* Line 1: Filename */}
+                <div className="text-[11px] truncate text-muted-foreground font-medium w-full" title={item.file.name}>
                     {item.file.name}
                 </div>
 
-                {item.status === 'done' ? (
-                    <div className="flex gap-1 items-center">
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 shrink-0 border-green-200 hover:bg-green-50 hover:text-green-600" asChild>
-                            <a href={item.resultUrl} download={`bg-removed-${item.file.name}`}>
-                                <Download className="w-4 h-4" />
-                            </a>
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="h-8 w-8 flex items-center justify-center">
-                        {item.status === 'queued' && (
-                            <div className="flex gap-1">
-                                {onCrop && (
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-900" onClick={() => onCrop(item)} title="Crop / Extract Area">
-                                        <Scissors className="w-4 h-4" />
-                                    </Button>
-                                )}
-                                {onSmartSelect && (
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-400 hover:text-indigo-900" onClick={() => onSmartSelect(item)} title="Smart Select (AI)">
-                                        <Wand2 className="w-4 h-4" />
-                                    </Button>
-                                )}
-                                <span className="w-8 h-8 flex items-center justify-center">
-                                    <span className="w-2 h-2 rounded-full bg-slate-300" />
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Line 2: Actions Row */}
+                <div className="flex items-center justify-start gap-2 w-full">
+                    {item.status === 'queued' && (
+                        <>
+                            {onCrop && (
+                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onCrop(item)} title="切り抜き">
+                                    <Scissors className="w-4 h-4" />
+                                    <span className="inline">切り抜き</span>
+                                </Button>
+                            )}
+                            {onSmartSelect && (
+                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-purple-600/80 hover:text-purple-600 hover:bg-purple-50 transition-colors text-xs gap-2 font-medium" onClick={() => onSmartSelect(item)} title="スマート選択">
+                                    <Wand2 className="w-4 h-4" />
+                                    <span className="inline">スマート選択</span>
+                                </Button>
+                            )}
+                        </>
+                    )}
+                </div>
+
+                {/* Line 3: Main Save Button (Stacked below) */}
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className={cn(
+                        "w-full h-10 px-4 rounded-xl shadow-none transition-all",
+                        item.status === 'done'
+                            ? "bg-primary text-primary-foreground border-transparent hover:scale-105 active:scale-95 shadow-lg shadow-purple-500/20"
+                            : "bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
+                    )}
+                    asChild
+                >
+                    <a
+                        href={item.resultUrl || item.originalUrl}
+                        download={item.status === 'done' ? `bg-removed-${item.file.name}` : item.file.name}
+                        title={item.status === 'done' ? "結果を保存" : "元の画像を保存"}
+                        className="flex items-center justify-center w-full"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        <span className="text-sm font-bold tracking-wider">
+                            {item.status === 'done' ? '保存' : '保存'}
+                        </span>
+                    </a>
+                </Button>
             </div>
         </Card>
     );

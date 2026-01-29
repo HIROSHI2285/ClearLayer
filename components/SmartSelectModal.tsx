@@ -30,6 +30,9 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
     const [error, setError] = useState<string | null>(null);
     const [uuid] = useState(() => Math.random().toString(36).substring(7));
     const [mode, setMode] = useState<'positive' | 'negative'>('positive');
+    const [sensitivity, setSensitivity] = useState(0.5);
+    const [smoothness, setSmoothness] = useState(0.5);
+    const [maskIndex, setMaskIndex] = useState(-1); // -1 = Auto (best), 0 = SubPart, 1 = Part, 2 = Whole
 
     // Initialize Worker
     useEffect(() => {
@@ -86,6 +89,27 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
         }
     };
 
+    const triggerDecode = useCallback((currentPoints: Point[], sens: number, smooth: number, mIdx: number) => {
+        if (!workerRef.current || currentPoints.length === 0) return;
+        workerRef.current.postMessage({
+            command: 'decode',
+            uuid,
+            points: currentPoints.map(p => [p.x, p.y]),
+            labels: currentPoints.map(p => p.label),
+            sensitivity: sens,
+            smoothness: smooth,
+            maskIndex: mIdx
+        });
+    }, [uuid]);
+
+    // Re-decode when sensitivity/smoothness/maskIndex changes
+    useEffect(() => {
+        if (points.length > 0) {
+            const timer = setTimeout(() => triggerDecode(points, sensitivity, smoothness, maskIndex), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [sensitivity, smoothness, maskIndex, triggerDecode]);
+
     const handlePointClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (isEmbedding || isModelLoading || !containerRef.current) return;
 
@@ -93,39 +117,30 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Scale to natural image size for the worker (handled in worker via width/height ratio, but we pass raw coords usually?)
-        // Wait, SAM worker expects coords relative to the image passed to encode.
-        // We displayed the image with `object-contain`. We need to map click to image coordinates.
-
         const img = containerRef.current.querySelector('img');
         if (!img) return;
 
-        // Calculate image position within container (due to object-contain)
         const ratio = img.naturalWidth / img.naturalHeight;
         const containerRatio = rect.width / rect.height;
 
         let displayWidth, displayHeight, offsetX, offsetY;
 
         if (containerRatio > ratio) {
-            // Container is wider than image: Image is height-constrained
             displayHeight = rect.height;
             displayWidth = displayHeight * ratio;
             offsetX = (rect.width - displayWidth) / 2;
             offsetY = 0;
         } else {
-            // Container is taller: Image is width-constrained
             displayWidth = rect.width;
             displayHeight = displayWidth / ratio;
             offsetX = 0;
             offsetY = (rect.height - displayHeight) / 2;
         }
 
-        // Check if click is inside image
         if (x < offsetX || x > offsetX + displayWidth || y < offsetY || y > offsetY + displayHeight) {
-            return; // Clicked on background, ignore
+            return;
         }
 
-        // Map to natural dimensions
         const naturalX = (x - offsetX) * (img.naturalWidth / displayWidth);
         const naturalY = (y - offsetY) * (img.naturalHeight / displayHeight);
 
@@ -133,13 +148,7 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
         const newPoints = [...points, newPoint];
         setPoints(newPoints);
 
-        // Send to worker
-        workerRef.current?.postMessage({
-            command: 'decode',
-            uuid,
-            points: newPoints.map(p => [p.x, p.y]),
-            labels: newPoints.map(p => p.label)
-        });
+        triggerDecode(newPoints, sensitivity, smoothness, maskIndex);
     };
 
     const handleSave = async () => {
@@ -208,14 +217,15 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col p-0 gap-0">
+            <DialogContent className="sm:max-w-[1000px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden glass border-white/10 shadow-2xl rounded-[2rem]">
                 <DialogHeader className="p-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
                         <Wand2 className="w-5 h-5 text-purple-500" />
-                        AI Smart Select (Point & Click)
+                        AIスマート選択 (クリックして指定)
                     </DialogTitle>
-                    <DialogDescription>
-                        Click on the image to select areas to keep (Green) or remove (Red). The AI will auto-adjust the selection.
+                    <DialogDescription className="flex flex-col gap-1">
+                        <span>画像をクリックして、残したい領域（緑）や消したい領域（赤）を指定してください。AIが自動で境界線を調整します。</span>
+                        <span className="text-amber-600 font-medium font-bold text-xs">ヒント: 輪郭ではなく、対象物の「内側」をクリックするとうまくいきます。</span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -226,14 +236,14 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                 >
                     {error && (
                         <div className="absolute top-4 left-4 right-4 z-50 bg-red-500/90 text-white p-2 rounded shadow-lg text-sm flex justify-between">
-                            <span>Error: {error}</span>
+                            <span>エラー: {error}</span>
                             <button onClick={() => setError(null)}><X className="w-4 h-4" /></button>
                         </div>
                     )}
                     {/* Background Image */}
                     <img
                         src={imageUrl}
-                        className="w-full h-full object-contain pointer-events-none opacity-80"
+                        className="w-full h-full object-contain pointer-events-none"
                         alt="target"
                     />
 
@@ -264,38 +274,97 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                     {(isModelLoading || isEmbedding) && (
                         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white z-50">
                             <Loader2 className="w-10 h-10 animate-spin mb-2" />
-                            <p>{isModelLoading ? "Loading AI Model..." : "Analyzing Image..."}</p>
+                            <p>{isModelLoading ? "AIモデルを準備中..." : "画像を解析中..."}</p>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="p-4 border-t bg-white flex justify-between items-center sm:justify-between">
-                    <div className="flex gap-2 items-center">
-                        <Button
-                            size="sm"
-                            variant={mode === 'positive' ? 'default' : 'outline'}
-                            onClick={() => setMode('positive')}
-                            className={cn(mode === 'positive' ? "bg-green-600 hover:bg-green-700" : "text-green-600 border-green-200")}
-                        >
-                            <Check className="w-4 h-4 mr-1" /> Keep Area
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={mode === 'negative' ? 'default' : 'outline'}
-                            onClick={() => setMode('negative')}
-                            className={cn(mode === 'negative' ? "bg-red-600 hover:bg-red-700" : "text-red-600 border-red-200")}
-                        >
-                            <X className="w-4 h-4 mr-1" /> Remove Area
-                        </Button>
-                        <span className="text-xs text-slate-500 ml-2">Click on image to add points</span>
+                <DialogFooter className="p-4 border-t bg-white flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex flex-col gap-3 w-full sm:w-auto">
+                        <div className="flex gap-2 items-center">
+                            <Button
+                                size="sm"
+                                variant={mode === 'positive' ? 'default' : 'outline'}
+                                onClick={() => setMode('positive')}
+                                className={cn(mode === 'positive' ? "bg-green-600 hover:bg-green-700" : "text-green-600 border-green-200")}
+                            >
+                                <Check className="w-4 h-4 mr-1" /> 残すエリア (緑)
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant={mode === 'negative' ? 'default' : 'outline'}
+                                onClick={() => setMode('negative')}
+                                className={cn(mode === 'negative' ? "bg-red-600 hover:bg-red-700" : "text-red-600 border-red-200")}
+                            >
+                                <X className="w-4 h-4 mr-1" /> 消すエリア (赤)
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-md border border-slate-100">
+                            <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">感度 (Sensitivity)</label>
+                                <input
+                                    type="range"
+                                    min="0.05"
+                                    max="0.95"
+                                    step="0.01"
+                                    value={sensitivity}
+                                    onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                />
+                                <div className="flex justify-between text-[9px] text-slate-400">
+                                    <span>狭く</span>
+                                    <span>広く</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">滑らかさ (Smoothness)</label>
+                                <input
+                                    type="range"
+                                    min="0.05"
+                                    max="0.95"
+                                    step="0.01"
+                                    value={smoothness}
+                                    onChange={(e) => setSmoothness(parseFloat(e.target.value))}
+                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                />
+                                <div className="flex justify-between text-[9px] text-slate-400">
+                                    <span>シャープ</span>
+                                    <span>ソフト</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">マスク範囲</label>
+                                <div className="flex border rounded overflow-hidden">
+                                    <button
+                                        onClick={() => setMaskIndex(-1)}
+                                        className={cn("px-2 py-1 text-[10px] font-medium transition-colors", maskIndex === -1 ? "bg-purple-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100")}
+                                    >自動</button>
+                                    <button
+                                        onClick={() => setMaskIndex(0)}
+                                        className={cn("px-2 py-1 text-[10px] font-medium transition-colors border-l", maskIndex === 0 ? "bg-purple-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100")}
+                                    >一部分</button>
+                                    <button
+                                        onClick={() => setMaskIndex(1)}
+                                        className={cn("px-2 py-1 text-[10px] font-medium transition-colors border-l", maskIndex === 1 ? "bg-purple-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100")}
+                                    >物体</button>
+                                    <button
+                                        onClick={() => setMaskIndex(2)}
+                                        className={cn("px-2 py-1 text-[10px] font-medium transition-colors border-l", maskIndex === 2 ? "bg-purple-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100")}
+                                    >全体</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex gap-2">
                         <Button variant="secondary" onClick={() => setPoints([])}>
-                            Reset Points
+                            リセット
                         </Button>
                         <Button onClick={handleSave} disabled={!maskUrl || points.length === 0}>
-                            Extract Selection
+                            選択範囲を保存
                         </Button>
                     </div>
                 </DialogFooter>

@@ -1,5 +1,4 @@
-
-import { env, SamModel, AutoProcessor, RawImage, Tensor } from '@huggingface/transformers';
+import { env, Sam2Model, AutoProcessor, RawImage, Tensor } from '@huggingface/transformers';
 
 // Skip local checks via env
 env.allowLocalModels = false;
@@ -12,9 +11,9 @@ interface SamWorkerMessage {
     image?: Blob | File;
     points?: number[]; // [x1, y1, x2, y2, ...]
     labels?: number[]; // [1, 0, 1, 0...] 1=positive, 0=negative
-    embeddings?: any;
 }
 
+// Singleton for the model and processor
 let model: any = null;
 let processor: any = null;
 
@@ -23,21 +22,26 @@ const embeddingsMap = new Map<string, any>();
 
 async function loadModel() {
     if (model) return;
-    console.log("Loading SAM Model...");
 
-    // Use a lightweight SAM model suitable for browser
-    // Use SlimSAM (Proven compatibility with transformers.js)
-    const modelId = 'Xenova/slimsam-77-uniform';
+    console.log("Loading SAM 2.1 Model...");
+    self.postMessage({ status: 'loading', message: 'Loading SAM 2.1 Model (approx. 100MB)...' });
 
-    model = await SamModel.from_pretrained(modelId, {
-        dtype: 'fp32',
-        device: 'wasm', // 'wasm' is the correct backend for CPU
-    });
+    // Use onnx-community version for guaranteed compatibility with Transformers.js v3
+    const modelId = 'onnx-community/sam2.1-hiera-tiny-ONNX';
 
-    processor = await AutoProcessor.from_pretrained(modelId);
+    try {
+        model = await Sam2Model.from_pretrained(modelId, {
+            dtype: 'fp32',
+            device: 'wasm', // WASM is safer in workers for now
+        });
 
-    // Send ready signal
-    self.postMessage({ status: 'ready', message: 'SAM Model Loaded' });
+        processor = await AutoProcessor.from_pretrained(modelId);
+
+        self.postMessage({ status: 'ready', message: 'SAM 2.1 (Hiera-Tiny) Loaded' });
+    } catch (e: any) {
+        console.error("SAM 2 loading failed", e);
+        self.postMessage({ status: 'error', error: `SAM 2.1 Load Failed: ${e.message}.` });
+    }
 }
 
 self.onmessage = async (e: MessageEvent<SamWorkerMessage>) => {
@@ -57,10 +61,8 @@ self.onmessage = async (e: MessageEvent<SamWorkerMessage>) => {
 
             embeddingsMap.set(uuid, {
                 image_embeddings,
-                orig_height: rawImage.height,
-                orig_width: rawImage.width,
-                input_height: inputs.pixel_values.dims[2],
-                input_width: inputs.pixel_values.dims[3]
+                original_sizes: inputs.original_sizes,
+                reshaped_input_sizes: inputs.reshaped_input_sizes,
             });
 
             // Cleanup loaded image to save memory? (No, RawImage handles it)
@@ -69,158 +71,162 @@ self.onmessage = async (e: MessageEvent<SamWorkerMessage>) => {
         }
 
         else if (command === 'decode') {
+            const { uuid, points, labels, sensitivity = 0.5, maskIndex = -1 } = e.data as any;
             if (!model || !processor || !uuid || !embeddingsMap.has(uuid)) return;
 
             const embeddingData = embeddingsMap.get(uuid);
+            const [originalH, originalW] = embeddingData.original_sizes[0];
+            const [reshapedH, reshapedW] = embeddingData.reshaped_input_sizes[0];
 
-            // Prepare points for input
-            // points input should be shape [1, N, 2]
-            // labels input should be shape [1, N]
+            const scaleX = reshapedW / originalW;
+            const scaleY = reshapedH / originalH;
 
-            // Xenova/transformers.js SAM implementation might vary slightly in input format
-            // We use the processor/model typically.
+            // Prepare points
+            let finalPoints = points ? [...points] : [];
+            let finalLabels = labels ? [...labels] : [];
 
-            // Actually for decoder-only inference with embeddings, we directly call the model
-            // but passing the embeddings as inputs.
+            // Feature: Automatic Background Anchors
+            // If the user hasn't added any "Remove" (0) points, add corners as context
+            if (!finalLabels.includes(0) && finalPoints.length > 0) {
+                // Add 4 corners as implicit background (Red points)
+                // Using 0,0 0,W W,0 W,W
+                finalPoints.push([0, 0], [originalW - 1, 0], [0, originalH - 1], [originalW - 1, originalH - 1]);
+                finalLabels.push(0, 0, 0, 0);
+            }
 
-            // The library evolves, let's try the standard way:
+            const scaledPoints = finalPoints.map((p: any) => [
+                Math.round(p[0] * scaleX),
+                Math.round(p[1] * scaleY)
+            ]);
 
-            // Rescale points to input dimensions
-            // Note: transformations are usually handled by processor, but since we are doing manual embedding loop...
-            // Use the processor to format points if available, or manual scaling.
-            // For SlimSAM / transformers.js, we often re-run processor or construct inputs manually.
-
-            // Simplified approach for transformers.js v2/v3:
-            // Use the `points` argument in process if we were running full pipeline.
-            // But we want to reuse embeddings.
-
-            // Construct inputs object for model
-            const input_points = points ? new Tensor('float32', points.flat(), [1, points.length, 2]) : null;
-            const input_labels = labels ? new Tensor('float32', labels, [1, labels.length]) : null;
-
-            // We need to scale points to the model input size (usually 1024x1024)
-            // SlimSAM might be different.
-            // Let's rely on the processor if possible, or manual scaling.
-
-            // Manual scaling:
-            // (x * 1024 / origW)
-            // Check model config for size? SlimSAM is variable but trained at 1024 often.
-            // Let's assume standard behavior for now:
-            // Re-scale points?
-            // Let's try passing points directly to model if the library handles it, 
-            // otherwise we might need to manually preprocess points.
-
-            // Actually transformers.js SAM support for `get_image_embeddings` implies we feed those back.
-            // `model({ ...image_embeddings, input_points, input_labels })`
-
-            // But we DO need to scale points.
-            // The processor usually creates `reshape_input` but we can calculate scale.
-
-            const scaleX = embeddingData.input_width / embeddingData.orig_width;
-            const scaleY = embeddingData.input_height / embeddingData.orig_height;
-
-            const scaledPoints = points?.map(p => [(p as any)[0] * scaleX, (p as any)[1] * scaleY]);
+            // SAM-vit-base expects [batch_size, num_queries, num_points, 2] 
+            // and [batch_size, num_queries, num_points]
+            const input_points = new Tensor('float32', scaledPoints.flat(), [1, 1, scaledPoints.length, 2]);
+            const input_labels = new Tensor('int64', new BigInt64Array(finalLabels.map(l => BigInt(l))), [1, 1, finalLabels.length]);
 
             const samInputs = {
-                ...embeddingData.image_embeddings, // image_embeddings tensor
-                input_points: scaledPoints ? new Tensor('float32', scaledPoints.flat(), [1, scaledPoints.length, 2]) : undefined,
-                input_labels: labels ? new Tensor('float32', labels, [1, labels.length]) : undefined,
+                ...embeddingData.image_embeddings,
+                input_points,
+                input_labels,
             }
 
             const outputs = await model(samInputs);
 
-            // Outputs contains `pred_masks` and `iou_predictions`
-            // We usually take the mask with highest IoU score.
-            // Or simpler: best mask is usually index 0 in single-mask mode?
-            // Transformers.js usually returns 3 masks (low, med, high res/ambiguity).
+            // Post-process the masks using the processor to get high-res masks in original resolution
+            // We use the processor's post_process_masks which handles the padding and rescaling.
+            const masks = await (processor as any).post_process_masks(
+                outputs.pred_masks,
+                embeddingData.original_sizes,
+                embeddingData.reshaped_input_sizes
+            );
 
-            // Flatten mask to bitmap
-            const masks = outputs.pred_masks; // [1, 3, 256, 256] typically (low res masks)
-            // Need to upsample?
-            // SAM includes post-processing usually.
+            // Extract the best mask
+            const iou_scores = outputs.iou_scores ? outputs.iou_scores.data : outputs.iou_predictions.data;
+            let bestIndex = iou_scores.indexOf(Math.max(...iou_scores));
 
-            // Actually, transformers.js might output low-res masks (256x256).
-            // We need to resize them to original image size.
+            // Allow manual override of mask index (for Detail/Wide modes)
+            if (maskIndex >= 0 && maskIndex < (outputs.pred_masks.dims[1] || 1)) {
+                bestIndex = maskIndex;
+            }
 
-            // Let's extract the best mask (highest IoU)
-            const iou_scores = outputs.iou_predictions.data;
-            const bestIndex = iou_scores.indexOf(Math.max(...iou_scores));
+            const bestMask = (masks[0] as any);
+            const dims = bestMask.dims;
+            // Shape: [num_masks, H, W] or [1, num_masks, H, W]
+            const maskW = dims[dims.length - 1];
+            const maskH = dims[dims.length - 2];
+            const numChannels = dims.length > 2 ? dims[dims.length - 3] : 1;
 
-            // Get mask data for best index
-            // Shape: [batch, num_masks, height, width]
-            // We want batch 0, mask bestIndex.
+            const [targetH, targetW] = embeddingData.original_sizes[0];
 
-            const maskData = masks; // Tensor
-            const maskH = maskData.dims[2];
-            const maskW = maskData.dims[3];
-            const maskStride = maskH * maskW;
-            const maskOffset = bestIndex * maskStride;
+            console.log(`[SAM Worker] Mask Dims: ${dims.join('x')}, Target: ${targetW}x${targetH}, Best Index: ${bestIndex}, Sensitivity: ${sensitivity}`);
+            console.log(`[SAM Worker] Best Mask Tensor Shape: ${bestMask.dims.join('x')}, Data Length: ${bestMask.data.length}`);
 
-            // Create OffscreenCanvas for mask
-            const maskCanvas = new OffscreenCanvas(embeddingData.orig_width, embeddingData.orig_height);
+            // Create canvases at controlled resolution
+            const maskCanvas = new OffscreenCanvas(targetW, targetH);
             const maskCtx = maskCanvas.getContext('2d');
-            if (!maskCtx) throw new Error("No ctx");
+            if (!maskCtx) throw new Error("No maskCtx");
 
-            // The mask output is logits (scores). We need to threshold them (usually > 0.0).
-            // Also it is 256x256 (typically). process it on small canvas then draw scaled up.
-
-            const lowResCanvas = new OffscreenCanvas(maskW, maskH);
-            const lowResCtx = lowResCanvas.getContext('2d');
-            if (!lowResCtx) throw new Error("No lowResCtx");
-            const imgData = lowResCtx.createImageData(maskW, maskH);
-
-            // Create raw mask for extraction (Opaque=Remove, Transparent=Keep)
-            const rawMaskCanvas = new OffscreenCanvas(maskW, maskH);
+            const rawMaskCanvas = new OffscreenCanvas(targetW, targetH);
             const rawMaskCtx = rawMaskCanvas.getContext('2d');
             if (!rawMaskCtx) throw new Error("No rawMaskCtx");
-            const rawImgData = rawMaskCtx.createImageData(maskW, maskH);
 
-            for (let i = 0; i < maskStride; i++) {
-                const val = maskData.data[maskOffset + i];
-                // PowerPoint style:
-                // Val > 0.0 is the "Object" (Keep). We want this to be TRANSPARENT.
-                // Val <= 0.0 is the "Background" (Remove). We want this to be PURPLE overlay.
+            const imgData = maskCtx.createImageData(targetW, targetH);
+            const rawImgData = rawMaskCtx.createImageData(targetW, targetH);
 
-                const isObject = val > 0.0;
+            const maskStride = maskH * maskW;
+            const channelOffset = Math.min(bestIndex, numChannels - 1) * maskStride;
+            const data = bestMask.data;
 
-                // Display Mask (Purple Overlay)
-                // Val > 0.0 is the "Object" (Keep). We want this to be TRANSPARENT.
-                // Val <= 0.0 is the "Background" (Remove). We want this to be PURPLE overlay.
-                if (isObject) {
-                    imgData.data[i * 4 + 3] = 0; // Transparent
-                } else {
-                    // Purple overlay (rgba(168, 85, 247, 0.5) -> tailwind purple-500 approx)
-                    imgData.data[i * 4 + 0] = 168; // R
-                    imgData.data[i * 4 + 1] = 85;  // G
-                    imgData.data[i * 4 + 2] = 247; // B
-                    imgData.data[i * 4 + 3] = 120; // Alpha (semi-transparent)
-                }
+            const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
-                // Raw Mask for Extraction (Destination-Out)
-                // We want to remove the Background.
-                // Destination-out removes where the mask is OPAQUE.
-                // So Background should be OPAQUE. Object should be TRANSPARENT.
-                if (isObject) {
-                    rawImgData.data[i * 4 + 3] = 0; // Transparent (Keep)
-                } else {
-                    rawImgData.data[i * 4 + 0] = 0;
-                    rawImgData.data[i * 4 + 1] = 0;
-                    rawImgData.data[i * 4 + 2] = 0;
-                    rawImgData.data[i * 4 + 3] = 255; // Opaque Black (Remove)
+            // Feature: Smoothness (Sharpness)
+            // Higher smoothness = softer transition. Lower = sharper (Canva style).
+            // Default 0.5 -> temp = 1.0. Sensitivity moves the threshold.
+            const smoothness = (e.data as any).smoothness ?? 0.5;
+            const temperature = 1.0 / (0.1 + smoothness * 2.0); // Map 0.5 to ~1.0, lower to be sharper
+
+            // Use 2D loop with explicit check against TENSOR dimensions vs TARGET dimensions
+            for (let y = 0; y < targetH; y++) {
+                for (let x = 0; x < targetW; x++) {
+                    const pixelIdx = (y * targetW + x) * 4;
+
+                    let logit = -10.0;
+                    if (y < maskH && x < maskW) {
+                        const tensorIdx = channelOffset + (y * maskW + x);
+                        logit = data[tensorIdx];
+                    }
+
+                    // Apply temperature for sharpness control
+                    const prob = sigmoid(logit * temperature);
+                    // Use sensitivity as the threshold
+                    const isForeground = prob > 0.5; // Since we moved threshold via sensitivity? 
+                    // Wait, sensitivity should be the PRECISE point where we cut.
+                    const adjustedProb = sigmoid((logit - (sensitivity * 20 - 10)) * temperature);
+                    const isVisible = adjustedProb > 0.5;
+
+                    // Display Overlay (Magenta for background)
+                    if (isVisible) {
+                        imgData.data[pixelIdx + 3] = 0; // Transparent (Foreground)
+                    } else {
+                        imgData.data[pixelIdx + 0] = 219;
+                        imgData.data[pixelIdx + 1] = 39;
+                        imgData.data[pixelIdx + 2] = 239;
+                        imgData.data[pixelIdx + 3] = 180;
+                    }
+
+                    // Raw Mask (Alpha = Remove percentage)
+                    rawImgData.data[pixelIdx + 0] = 0;
+                    rawImgData.data[pixelIdx + 1] = 0;
+                    rawImgData.data[pixelIdx + 2] = 0;
+
+                    // Final Cut Logic - ALIGNED WITH VISUALS (Fix "Purple Area" Residue)
+                    // Visual Overlay threshold is 0.5. Anything below 0.5 is shown as "Purple".
+                    // We must ensure that ANYTHING visible as "Purple" is 100% removed.
+
+                    let finalAlpha = 0;
+
+                    // If probability is < 0.55 (Background/Purple + small buffer), FORCE COMPLETE REMOVAL (255).
+                    if (adjustedProb < 0.55) {
+                        finalAlpha = 255;
+                    }
+                    // If probability is high (Foreground), keep it solid (0).
+                    else if (adjustedProb > 0.7) {
+                        finalAlpha = 0;
+                    }
+                    // Only anti-alias the very tight edge (0.55 - 0.7)
+                    else {
+                        finalAlpha = Math.round((1.0 - adjustedProb) * 255);
+                    }
+
+                    rawImgData.data[pixelIdx + 3] = finalAlpha;
                 }
             }
-            lowResCtx.putImageData(imgData, 0, 0);
+
+            maskCtx.putImageData(imgData, 0, 0);
             rawMaskCtx.putImageData(rawImgData, 0, 0);
 
-            // Scale up display mask
-            maskCtx.clearRect(0, 0, embeddingData.orig_width, embeddingData.orig_height);
-            maskCtx.drawImage(lowResCanvas, 0, 0, embeddingData.orig_width, embeddingData.orig_height);
             const blob = await maskCanvas.convertToBlob();
-
-            // Scale up raw mask
-            maskCtx.clearRect(0, 0, embeddingData.orig_width, embeddingData.orig_height);
-            maskCtx.drawImage(rawMaskCanvas, 0, 0, embeddingData.orig_width, embeddingData.orig_height);
-            const rawBlob = await maskCanvas.convertToBlob();
+            const rawBlob = await rawMaskCanvas.convertToBlob();
 
             self.postMessage({ status: 'decoded', uuid, mask: blob, rawMask: rawBlob });
         }

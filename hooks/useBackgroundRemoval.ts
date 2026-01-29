@@ -15,6 +15,7 @@ export interface ImageItem {
 export function useBackgroundRemoval() {
     const workerRef = useRef<Worker | null>(null);
     const [isReady, setIsReady] = useState(false);
+    const [initError, setInitError] = useState<string | null>(null);
     const [items, setItems] = useState<ImageItem[]>([]);
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -32,12 +33,14 @@ export function useBackgroundRemoval() {
                 if (status === 'ready') {
                     setIsReady(true);
                     console.log("Worker ready:", message);
+                } else if (status === 'error' && !id) {
+                    // Global/Init Error
+                    setInitError(error || "Model initialization failed");
+                    console.error("Worker Initialization Error:", error);
                 } else if (status === 'complete') {
                     handleComplete(id, result);
                 } else if (status === 'error') {
                     handleError(id, error);
-                } else if (status === 'processing') {
-                    // Optional: update progress message
                 }
             };
 
@@ -52,7 +55,7 @@ export function useBackgroundRemoval() {
 
     // Queue Processor
     useEffect(() => {
-        if (isReady && isPlaying && processingId === null && items.some(i => i.status === 'queued')) {
+        if (isReady && isPlaying && processingId === null) {
             const nextItem = items.find(i => i.status === 'queued');
             if (nextItem) {
                 processItem(nextItem);
@@ -92,20 +95,33 @@ export function useBackgroundRemoval() {
         setProcessingId(null);
     };
 
-    const addFiles = useCallback((files: File[]) => {
+    const addFiles = useCallback((files: File[], initialStatus: ProcessStatus = 'queued') => {
         const newItems: ImageItem[] = files.map(f => ({
             id: Math.random().toString(36).substring(7),
             file: f,
-            status: 'queued',
+            status: initialStatus,
             originalUrl: URL.createObjectURL(f),
+            // If it's already done (e.g. Smart Select), the original IS the result.
+            // But usually 'result' is separate. 
+            // For Smart Select, we pass the blob as 'file'. 
+            // We should probably set resultUrl = originalUrl if status is done?
+            // Let's keep it simple: if done, user sees 'originalUrl' in list, but we might want to set result too?
+            // Actually, ImageList displays 'resultUrl' if available, else 'originalUrl' with overlay?
+            // No, ImageList shows 'original' on left, 'result' on right.
+            // If Smart Select adds a file, it's treated as "Input".
+            // Ideally, Smart Select output should be the "Result" of a new item?
+            // Or the "Input" of a new item that is already "Done"?
+            // If it's "Done", it needs a result blob.
+            result: initialStatus === 'done' ? f : undefined,
+            resultUrl: initialStatus === 'done' ? URL.createObjectURL(f) : undefined
         }));
 
         setItems(prev => [...prev, ...newItems]);
     }, []);
 
-    const addBlob = useCallback((blob: Blob) => {
+    const addBlob = useCallback((blob: Blob, initialStatus: ProcessStatus = 'queued') => {
         const file = new File([blob], `cropped-${Date.now()}.png`, { type: 'image/png' });
-        addFiles([file]);
+        addFiles([file], initialStatus);
     }, [addFiles]);
 
     const removeItem = useCallback((id: string) => {
@@ -140,14 +156,28 @@ export function useBackgroundRemoval() {
         setIsPlaying(true);
     }, []);
 
+    const resetAll = useCallback(() => {
+        setItems(prev => {
+            prev.forEach(item => {
+                URL.revokeObjectURL(item.originalUrl);
+                if (item.resultUrl) URL.revokeObjectURL(item.resultUrl);
+            });
+            return [];
+        });
+        setIsPlaying(false);
+        setProcessingId(null);
+    }, []);
+
     return {
         isReady,
+        initError,
         items,
         addFiles,
         addBlob,
         removeItem,
         updateResult,
         isPlaying,
-        startProcessing
+        startProcessing,
+        resetAll
     };
 }

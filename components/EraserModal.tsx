@@ -25,15 +25,20 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     const [history, setHistory] = useState<ImageData[]>([]);
 
     useEffect(() => {
+        let isMounted = true;
         if (!isOpen || !canvasRef.current || !imageUrl) return;
 
         setImageLoaded(false);
+        console.log("EraserModal: Opening with image", imageUrl.substring(0, 50) + "...");
+
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
         const img = new Image();
         img.onload = () => {
+            if (!isMounted) return;
+            console.log("EraserModal: Image loaded successfully", img.width, "x", img.height);
             canvas.width = img.width;
             canvas.height = img.height;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -41,12 +46,13 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
             setImageLoaded(true);
         };
         img.onerror = (e) => {
+            if (!isMounted) return;
             console.error("EraserModal: Failed to load image", imageUrl, e);
-            setImageLoaded(true); // Stop spinner even on error
+            setImageLoaded(true);
         };
 
-        // Use blob URLs directly, no crossOrigin needed for local blobs
         img.src = imageUrl;
+        return () => { isMounted = false; };
     }, [isOpen, imageUrl]);
 
     const getMousePos = (e: MouseEvent) => {
@@ -127,11 +133,14 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-4 border-b">
+                <DialogHeader className="p-4 border-b text-slate-900 bg-white">
                     <DialogTitle className="flex items-center gap-2">
                         <Eraser className="w-5 h-5" />
-                        Manual Eraser
+                        消しゴムツール
                     </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        ブラシを使って画像の一部を消去したり、修正したりできます。
+                    </DialogDescription>
                 </DialogHeader>
 
                 {/* Canvas Area */}

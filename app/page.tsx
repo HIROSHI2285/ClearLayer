@@ -37,9 +37,10 @@ export default function Home() {
   };
 
   const handleEraserClick = (item: ImageItem) => {
-    if (item.resultUrl) {
+    const targetUrl = item.resultUrl || item.originalUrl;
+    if (targetUrl) {
       setEraserTargetId(item.id);
-      setEraserImage(item.resultUrl);
+      setEraserImage(targetUrl);
       setIsEraserOpen(true);
     }
   };

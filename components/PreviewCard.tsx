@@ -111,6 +111,12 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                                     <span className="inline">スマート選択</span>
                                 </Button>
                             )}
+                            {onEraser && (
+                                <Button size="sm" variant="ghost" className="flex-1 h-9 px-3 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onEraser(item)} title="消しゴム">
+                                    <Eraser className="w-4 h-4" />
+                                    <span className="inline">消しゴム</span>
+                                </Button>
+                            )}
                         </>
                     )}
                     {item.status === 'done' && onEraser && (

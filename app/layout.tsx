@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   title: "ClearLayer Studio | 高精度ブラウザ背景削除ツール",
   description: "AI（BiRefNet/SAM2）を活用した、完全クライアントサイド実行の高精度な背景削除・オブジェクト抽出ツール。画像はサーバーに送信されず、プライバシーを完全に保護します。",
   icons: {
-    icon: '/logo-icon.png',
-    apple: '/logo-icon.png',
+    icon: '/logo-icon.png?v=2',
+    apple: '/logo-icon.png?v=2',
   },
 };
 

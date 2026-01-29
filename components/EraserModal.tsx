@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Eraser, Loader2, Save, Undo } from 'lucide-react';
 import { cn } from '@/lib/utils';

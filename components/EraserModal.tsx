@@ -31,13 +31,13 @@ export function EraserModal({ isOpen, imageUrl, onClose, onSave }: EraserModalPr
         if (!ctx) return;
 
         const img = new Image();
-        img.src = imageUrl;
         img.onload = () => {
             canvas.width = img.width;
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
             setImageLoaded(true);
         };
+        img.src = imageUrl;
     }, [isOpen, imageUrl]);
 
     const getMousePos = (e: MouseEvent) => {

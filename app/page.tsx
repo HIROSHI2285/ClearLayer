@@ -9,6 +9,7 @@ import { Layers, Play } from 'lucide-react';
 import { useState } from 'react';
 import { CropModal } from '@/components/CropModal';
 import { EraserModal } from '@/components/EraserModal';
+import { SmartSelectModal } from '@/components/SmartSelectModal';
 import { ImageItem } from '@/hooks/useBackgroundRemoval';
 
 export default function Home() {
@@ -19,6 +20,10 @@ export default function Home() {
   const [eraserTargetId, setEraserTargetId] = useState<string | null>(null);
   const [eraserImage, setEraserImage] = useState<string | null>(null);
   const [isEraserOpen, setIsEraserOpen] = useState(false);
+
+  const [smartSelectTargetId, setSmartSelectTargetId] = useState<string | null>(null);
+  const [smartSelectImage, setSmartSelectImage] = useState<string | null>(null);
+  const [isSmartSelectOpen, setIsSmartSelectOpen] = useState(false);
 
   const handleCropClick = (item: ImageItem) => {
     setEditingImage(item.originalUrl);
@@ -46,6 +51,23 @@ export default function Home() {
     setIsEraserOpen(false);
     setEraserTargetId(null);
     setEraserImage(null);
+  };
+
+  const handleSmartSelectClick = (item: ImageItem) => {
+    // Can act on original or result. Usually smart select is better on original.
+    // But if user wants to refineme result... SAM works best on raw RGB.
+    // Let's allow it on original for "Crop/Extract" replacement.
+    setSmartSelectTargetId(item.id);
+    setSmartSelectImage(item.originalUrl); // Use original for better detection
+    setIsSmartSelectOpen(true);
+  };
+
+  const handleSmartSelectSave = (blob: Blob) => {
+    // Add as new item
+    addBlob(blob);
+    setIsSmartSelectOpen(false);
+    setSmartSelectTargetId(null);
+    setSmartSelectImage(null);
   };
 
 
@@ -91,7 +113,7 @@ export default function Home() {
               </Button>
             </div>
           )}
-          <ImageList items={items} onCrop={handleCropClick} onRemove={removeItem} onEraser={handleEraserClick} />
+          <ImageList items={items} onCrop={handleCropClick} onRemove={removeItem} onEraser={handleEraserClick} onSmartSelect={handleSmartSelectClick} />
         </div>
 
         {isModalOpen && editingImage && (
@@ -109,6 +131,15 @@ export default function Home() {
             imageUrl={eraserImage}
             onClose={() => setIsEraserOpen(false)}
             onSave={handleEraserSave}
+          />
+        )}
+
+        {isSmartSelectOpen && smartSelectImage && (
+          <SmartSelectModal
+            isOpen={isSmartSelectOpen}
+            imageUrl={smartSelectImage}
+            onClose={() => setIsSmartSelectOpen(false)}
+            onSave={handleSmartSelectSave}
           />
         )}
       </div>

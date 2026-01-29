@@ -1,7 +1,7 @@
 "use client";
 
 import { ImageItem } from '@/hooks/useBackgroundRemoval';
-import { Loader2, Download, XCircle, CheckCircle2, Scissors, Eraser } from 'lucide-react';
+import { Loader2, Download, XCircle, CheckCircle2, Scissors, Eraser, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { X } from 'lucide-react';
@@ -11,9 +11,10 @@ interface PreviewCardProps {
     onRemove?: (id: string) => void;
     onCrop?: (item: ImageItem) => void;
     onEraser?: (item: ImageItem) => void;
+    onSmartSelect?: (item: ImageItem) => void;
 }
 
-export function PreviewCard({ item, onRemove, onCrop, onEraser }: PreviewCardProps) {
+export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }: PreviewCardProps) {
     // Checkerboard pattern for transparency
     const transparencyStyle = {
         backgroundImage: `
@@ -75,11 +76,6 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser }: PreviewCardPro
 
                 {item.status === 'done' ? (
                     <div className="flex gap-1 items-center">
-                        {onEraser && (
-                            <Button size="sm" variant="outline" className="h-8 w-8 p-0 shrink-0 border-blue-200 hover:bg-blue-50 hover:text-blue-600" onClick={() => onEraser(item)} title="Manual Eraser">
-                                <Eraser className="w-4 h-4" />
-                            </Button>
-                        )}
                         <Button size="sm" variant="outline" className="h-8 w-8 p-0 shrink-0 border-green-200 hover:bg-green-50 hover:text-green-600" asChild>
                             <a href={item.resultUrl} download={`bg-removed-${item.file.name}`}>
                                 <Download className="w-4 h-4" />
@@ -93,6 +89,11 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser }: PreviewCardPro
                                 {onCrop && (
                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-900" onClick={() => onCrop(item)} title="Crop / Extract Area">
                                         <Scissors className="w-4 h-4" />
+                                    </Button>
+                                )}
+                                {onSmartSelect && (
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-indigo-400 hover:text-indigo-900" onClick={() => onSmartSelect(item)} title="Smart Select (AI)">
+                                        <Wand2 className="w-4 h-4" />
                                     </Button>
                                 )}
                                 <span className="w-8 h-8 flex items-center justify-center">

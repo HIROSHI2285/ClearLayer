@@ -29,34 +29,34 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
     };
 
     return (
-        <Card className="overflow-hidden group relative glass border-white/5 rounded-3xl transition-all duration-500 hover:scale-[1.02] hover:shadow-primary/5 shadow-2xl">
-            <div className="relative aspect-square w-full bg-slate-950/40 transition-all overflow-hidden">
+        <Card className="overflow-hidden group relative glass border-slate-200/60 rounded-[2.5rem] transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/10 shadow-xl shadow-purple-500/5 bg-white/60 backdrop-blur-xl">
+            <div className="relative aspect-square w-full bg-slate-50/50 transition-all overflow-hidden">
                 {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-[0.03]" style={transparencyStyle}></div>
+                <div className="absolute inset-0 opacity-30" style={transparencyStyle}></div>
 
                 {/* Image Display */}
                 <div className="absolute inset-0 flex items-center justify-center p-6 group-hover:scale-105 transition-transform duration-700 ease-out">
                     <img
                         src={item.resultUrl || item.originalUrl}
                         alt="preview"
-                        className="max-w-full max-h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                        className="max-w-full max-h-full object-contain drop-shadow-xl"
                     />
                 </div>
 
                 {/* Overlays */}
                 {item.status === 'processing' && (
-                    <div className="absolute inset-0 bg-primary/10 flex flex-col items-center justify-center backdrop-blur-md">
+                    <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center backdrop-blur-md transition-all">
                         <div className="relative">
-                            <div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse" />
+                            <div className="absolute inset-0 bg-purple-500/20 blur-2xl rounded-full" />
                             <Loader2 className="w-12 h-12 text-primary animate-spin relative z-10" />
                         </div>
-                        <span className="mt-4 text-[10px] font-bold text-primary tracking-wider">処理中...</span>
+                        <span className="mt-4 text-[10px] font-bold text-slate-500 tracking-widest uppercase">Processing...</span>
                     </div>
                 )}
 
                 {item.status === 'error' && (
-                    <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center backdrop-blur-sm">
-                        <XCircle className="w-12 h-12 text-red-500/50" />
+                    <div className="absolute inset-0 bg-red-50/90 flex items-center justify-center backdrop-blur-sm border border-red-200">
+                        <XCircle className="w-12 h-12 text-red-400" />
                     </div>
                 )}
 

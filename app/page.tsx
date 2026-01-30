@@ -75,11 +75,12 @@ export default function Home() {
         <header className="flex justify-between items-center py-4 px-2">
           <div className="flex items-center gap-3">
             {/* Logo Icon */}
+            {/* Logo Icon */}
             <div
               className="flex items-center gap-3 cursor-pointer transition-opacity hover:opacity-80"
               onClick={() => window.location.reload()}
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00C4CC] to-[#7D2AE8] flex items-center justify-center shadow-lg transform -rotate-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center shadow-lg transform -rotate-3">
                 <Layers className="w-6 h-6 text-white" />
               </div>
               {/* Brand Text */}
@@ -96,9 +97,9 @@ export default function Home() {
         </header>
 
         {/* Hero Section - Centered, Welcoming */}
-        <section className="text-center space-y-8 py-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
+        <section className="text-center space-y-8 py-12 animate-in fade-in slide-in-from-bottom-5 duration-700">
           <h1 className="text-4xl md:text-6xl font-black text-slate-800 tracking-tight leading-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-400 via-cyan-400 to-sky-500 block md:inline">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-violet-600 block md:inline">
               <span className="inline-block">デザインを</span><span className="inline-block">自由にする。</span>
             </span>
             <br />
@@ -114,9 +115,9 @@ export default function Home() {
 
         {/* The "Work Surface" - Dropzone Area */}
         {/* Looking like the "Create a design" area or a canvas */}
-        <section className="glass rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-12 relative overflow-hidden transition-all duration-500 hover:shadow-[0_30px_60px_-10px_rgba(125,42,232,0.15)]">
+        <section className="glass rounded-[2rem] md:rounded-[3rem] p-4 md:p-12 relative overflow-hidden transition-all duration-500 hover:shadow-[0_30px_60px_-10px_rgba(125,42,232,0.15)]">
           {/* Decorative background blurs inside the card */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#00C4CC]/10 to-[#7D2AE8]/10 rounded-full blur-3xl -z-10 transform translate-x-1/3 -translate-y-1/3" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-full blur-3xl -z-10 transform translate-x-1/3 -translate-y-1/3" />
 
           <div className="flex flex-col md:flex-row gap-8 items-center">
             {/* Left Column: Dropzone */}
@@ -178,7 +179,7 @@ export default function Home() {
                 <Button
                   onClick={startProcessing}
                   disabled={isPlaying || !isReady || !items.some(i => i.status === 'queued')}
-                  className="rounded-full bg-[#00C4CC] hover:bg-[#00aeb5] text-white shadow-lg shadow-teal-200/50 px-8 font-bold transition-all hover:scale-105 active:scale-95"
+                  className="rounded-full bg-secondary hover:bg-secondary/90 text-white shadow-lg shadow-secondary/20 px-8 font-bold transition-all hover:scale-105 active:scale-95"
                 >
                   <Play className="w-4 h-4 mr-2 fill-current" />
                   {isPlaying ? "魔法をかけています..." : "一括自動処理"}

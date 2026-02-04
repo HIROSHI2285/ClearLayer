@@ -50,7 +50,7 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                             <div className="absolute inset-0 bg-purple-500/20 blur-2xl rounded-full" />
                             <Loader2 className="w-12 h-12 text-primary animate-spin relative z-10" />
                         </div>
-                        <span className="mt-4 text-[10px] font-bold text-slate-500 tracking-widest uppercase">Processing...</span>
+                        <span className="mt-4 text-[10px] font-bold text-slate-500 tracking-widest uppercase">処理中...</span>
                     </div>
                 )}
 
@@ -100,15 +100,15 @@ export function PreviewCard({ item, onRemove, onCrop, onEraser, onSmartSelect }:
                     {item.status === 'queued' && (
                         <>
                             {onCrop && (
-                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onCrop(item)} title="切り抜き">
+                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-100/50 transition-colors text-xs gap-2 font-medium" onClick={() => onCrop(item)} title="矩形で切り抜き">
                                     <Scissors className="w-4 h-4" />
-                                    <span>切り抜き</span>
+                                    <span>矩形で切り抜き</span>
                                 </Button>
                             )}
                             {onSmartSelect && (
-                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-purple-600/80 hover:text-purple-600 hover:bg-purple-50 transition-colors text-xs gap-2 font-medium" onClick={() => onSmartSelect(item)} title="スマート選択">
+                                <Button size="sm" variant="ghost" className="w-full h-9 px-2 rounded-xl text-purple-600/80 hover:text-purple-600 hover:bg-purple-50 transition-colors text-xs gap-2 font-medium" onClick={() => onSmartSelect(item)} title="AI切り抜き（自由形状）">
                                     <Wand2 className="w-4 h-4" />
-                                    <span>スマート選択</span>
+                                    <span>AI切り抜き</span>
                                 </Button>
                             )}
                             {onEraser && (

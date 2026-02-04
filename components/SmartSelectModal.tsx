@@ -155,7 +155,8 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
         const naturalX = (x - offsetX) * (img.naturalWidth / displayWidth);
         const naturalY = (y - offsetY) * (img.naturalHeight / displayHeight);
 
-        const newPoint = { x: naturalX, y: naturalY, label: mode === 'positive' ? 1 : 0 };
+        // Always use label=1 (positive) for SAM. The 'mode' controls what we do with the result.
+        const newPoint = { x: naturalX, y: naturalY, label: 1 };
         const newPoints = [...points, newPoint];
         setPoints(newPoints);
 
@@ -163,7 +164,7 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
     };
 
     const handleSave = async () => {
-        if (!maskUrl) return;
+        if (!maskUrl || !rawMaskUrl) return;
 
         // We need to composite the original image with the mask
         const canvas = document.createElement('canvas');
@@ -179,16 +180,39 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
 
         ctx.drawImage(img, 0, 0);
 
-        // Mask composite using rawMask (Opaque=Remove)
-        if (!rawMaskUrl) return;
-
         const maskImg = new Image();
         maskImg.src = rawMaskUrl;
         await new Promise(r => maskImg.onload = r);
 
-        // Destination-out to remove opaque areas (Background)
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+        if (mode === 'positive') {
+            // "Keep" mode: Remove the background (opaque areas in rawMask), keep the object
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(maskImg, 0, 0, canvas.width, canvas.height);
+        } else {
+            // "Remove" mode: Remove the object itself (invert the mask logic)
+            // rawMask has: alpha=255 for background, alpha=0 for object
+            // We need to INVERT this to remove the object instead of background.
+            // Create an inverted mask on a temporary canvas.
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (!tempCtx) return;
+
+            // Draw the mask
+            tempCtx.drawImage(maskImg, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Invert the alpha channel
+            const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            for (let i = 3; i < imgData.data.length; i += 4) {
+                imgData.data[i] = 255 - imgData.data[i];
+            }
+            tempCtx.putImageData(imgData, 0, 0);
+
+            // Apply the inverted mask with destination-out
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+        }
 
         canvas.toBlob((blob) => {
             if (blob) onSave(blob);
@@ -235,8 +259,8 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                         AIスマート選択 (クリックして指定)
                     </DialogTitle>
                     <DialogDescription className="flex flex-col gap-1">
-                        <span>画像をクリックして、残したい領域（緑）や消したい領域（赤）を指定してください。AIが自動で境界線を調整します。</span>
-                        <span className="text-amber-600 font-medium font-bold text-xs">ヒント: 輪郭ではなく、対象物の「内側」をクリックするとうまくいきます。</span>
+                        <span>対象物をクリックして選択。モードで「残す」か「消す」かを選びます。</span>
+                        <span className="text-amber-600 font-medium font-bold text-xs">ヒント: 対象物の「内側」をクリックするとうまくいきます。</span>
                     </DialogDescription>
                 </DialogHeader>
 
@@ -299,7 +323,7 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                                 onClick={() => setMode('positive')}
                                 className={cn(mode === 'positive' ? "bg-green-600 hover:bg-green-700" : "text-green-600 border-green-200")}
                             >
-                                <Check className="w-4 h-4 mr-1" /> 残すエリア (緑)
+                                <Check className="w-4 h-4 mr-1" /> これを残す
                             </Button>
                             <Button
                                 size="sm"
@@ -307,7 +331,7 @@ export function SmartSelectModal({ isOpen, imageUrl, onClose, onSave }: SmartSel
                                 onClick={() => setMode('negative')}
                                 className={cn(mode === 'negative' ? "bg-red-600 hover:bg-red-700" : "text-red-600 border-red-200")}
                             >
-                                <X className="w-4 h-4 mr-1" /> 消すエリア (赤)
+                                <X className="w-4 h-4 mr-1" /> これを消す
                             </Button>
                         </div>
 

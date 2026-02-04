@@ -80,11 +80,11 @@ export function CropModal({ isOpen, imageUrl, onClose, onCropComplete }: CropMod
                 <DialogFooter className="p-4 border-t bg-white">
                     <div className="flex gap-2 w-full justify-end">
                         <Button variant="secondary" onClick={onClose} disabled={isProcessing}>
-                            Cancel
+                            キャンセル
                         </Button>
                         <Button onClick={handleSave} disabled={isProcessing || !completedCrop}>
                             {isProcessing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Run Extraction
+                            切り抜きを実行
                         </Button>
                     </div>
                 </DialogFooter>
